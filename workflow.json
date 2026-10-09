@@ -55,12 +55,6 @@
               "value": 10
             },
             {
-              "id": "cfg-model",
-              "name": "openai_model",
-              "type": "string",
-              "value": "gpt-4o"
-            },
-            {
               "id": "cfg-email",
               "name": "report_email",
               "type": "string",

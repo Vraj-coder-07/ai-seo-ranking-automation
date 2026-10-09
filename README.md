@@ -87,7 +87,7 @@ Email the SEO report (Gmail)
 
 | Workflow | Google Sheets log | AI email report |
 |---|---|---|
-| ![Workflow](screenshots/workflow-overview.png) | ![Sheets](screenshots/google-sheets-rankings.png) | ![Email](screenshots/ai-email-report.png) |
+| ![Workflow](screenshots/workflow-overview.png) | ![Sheets](screenshots/google-sheets-rankings.png) | ![Email](screenshots/ai-email-report.png) ![Email, continued](screenshots/ai-email-report-2.png) |
 
 ## Security
 
