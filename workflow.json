@@ -1,0 +1,378 @@
+{
+  "name": "Track keyword rankings on Google with Apify and send AI SEO reports by email",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "name": "Run daily at 8 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "run-daily-at-8-am"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "keywords",
+              "value": "ai voice agent, ai automation agency",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "target_domain",
+              "value": "yourdomain.com",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "country",
+              "value": "in",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "language",
+              "value": "en",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "ai_model",
+              "value": "models/gemini-2.5-flash",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "report_email",
+              "value": "your-email@example.com",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "id": "configuration"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "keyword_list",
+              "value": "={{ $json.keywords.split(',').map(k => k.trim()).filter(Boolean) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "name": "Prepare keyword list",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        0
+      ],
+      "id": "prepare-keyword-list"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "keyword_list",
+        "include": "noOtherFields",
+        "destinationFieldName": "keyword",
+        "options": {}
+      },
+      "name": "Split keywords into items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        660,
+        0
+      ],
+      "id": "split-keywords-into-items"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ queries: $json.keyword, countryCode: $('Configuration').first().json.country, languageCode: $('Configuration').first().json.language, resultsPerPage: 20, maxPagesPerQuery: 1 }) }}",
+        "options": {}
+      },
+      "name": "Scrape Google results with Apify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "id": "scrape-google-results-with-apify",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Apify API token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Configuration').first().json;\nconst target = String(cfg.target_domain || '').replace(/^www\\./, '').toLowerCase();\nconst today = new Date().toISOString().slice(0, 10);\nconst rows = [];\nfor (const item of $input.all()) {\n  const data = item.json;\n  const keyword = (data.searchQuery && data.searchQuery.term) || data.keyword || '';\n  const results = data.organicResults || [];\n  results.forEach((r, i) => {\n    let domain = '';\n    try { domain = new URL(r.url).hostname.replace(/^www\\./, '').toLowerCase(); } catch (e) {}\n    rows.push({ json: {\n      date: today,\n      keyword,\n      rank: r.position || i + 1,\n      title: r.title || '',\n      url: r.url || '',\n      domain,\n      description: r.description || '',\n      is_target_domain: target ? domain.endsWith(target) : false\n    }});\n  });\n}\nreturn rows;"
+      },
+      "name": "Extract and rank SERP results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "extract-and-rank-serp-results"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SPREADSHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {}
+      },
+      "name": "Log rankings to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1320,
+        0
+      ],
+      "id": "log-rankings-to-google-sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "rankings",
+        "options": {}
+      },
+      "name": "Combine rankings for AI analysis",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        0
+      ],
+      "id": "combine-rankings-for-ai-analysis"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an SEO analyst. Target domain: {{ $('Configuration').first().json.target_domain }}\n\nGoogle ranking data (JSON):\n{{ JSON.stringify($json.rankings) }}\n\nWrite a short SEO report as clean HTML (no markdown fences) with: 1) where the target domain ranks per keyword, 2) the top competitors, 3) 3-5 prioritized opportunities."
+      },
+      "name": "Generate AI SEO report",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        0
+      ],
+      "id": "generate-ai-seo-report"
+    },
+    {
+      "parameters": {
+        "modelName": "={{ $('Configuration').first().json.ai_model }}",
+        "options": {}
+      },
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        220
+      ],
+      "id": "google-gemini-chat-model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Configuration').first().json.report_email }}",
+        "subject": "Daily AI SEO Report",
+        "message": "={{ $json.text }}",
+        "options": {}
+      },
+      "name": "Email the SEO report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2080,
+        0
+      ],
+      "id": "email-the-seo-report",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Run daily at 8 AM": {
+      "main": [
+        [
+          {
+            "node": "Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration": {
+      "main": [
+        [
+          {
+            "node": "Prepare keyword list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare keyword list": {
+      "main": [
+        [
+          {
+            "node": "Split keywords into items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split keywords into items": {
+      "main": [
+        [
+          {
+            "node": "Scrape Google results with Apify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Google results with Apify": {
+      "main": [
+        [
+          {
+            "node": "Extract and rank SERP results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract and rank SERP results": {
+      "main": [
+        [
+          {
+            "node": "Log rankings to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log rankings to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Combine rankings for AI analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine rankings for AI analysis": {
+      "main": [
+        [
+          {
+            "node": "Generate AI SEO report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI SEO report": {
+      "main": [
+        [
+          {
+            "node": "Email the SEO report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate AI SEO report",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
