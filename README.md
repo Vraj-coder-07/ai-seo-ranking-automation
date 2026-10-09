@@ -73,14 +73,14 @@ Email the SEO report (Gmail)
 
 1. **Import the workflow:** in n8n, *Workflows -> Import from File* and select `workflow.json`.
 2. **Create credentials** in n8n (none are included in this repo):
-   - Apify API token (Header Auth: `Authorization: Bearer YOUR_TOKEN`)
+   - Apify API token (Header Auth: name `Authorization`, value `Bearer YOUR_APIFY_TOKEN`)
    - Google Sheets OAuth2
    - Gmail OAuth2
    - Google Gemini (PaLM) API key
 3. **Create a Google Sheet** with these headers in row 1:
-   `date | keyword | rank | title | url | domain | description | is_target_domain`
-4. **Edit the Configuration node:** `keywords` (comma-separated), `target_domain`, `country`, `language`, `ai_model`, `report_email`.
-5. **Select your credentials** on the Apify, Google Sheets, Gemini, and Gmail nodes, and choose your spreadsheet in the Sheets node.
+   `checked_at | keyword | rank | title | url | domain | description | is_target_domain`
+4. **Edit the Configuration node:** `keywords` (comma-separated), `target_domain`, `country_code` (e.g. `us`), `language_code` (e.g. `en`), `results_per_keyword` (default 10), `report_email`. The AI report uses the model selected on the Google Gemini Chat Model node.
+5. **Select your credentials** on the Apify, Google Sheets, Gemini, and Gmail nodes, and paste your spreadsheet URL in the Sheets node.
 6. **Test** with *Execute Workflow*, check the sheet and your inbox, then **activate** the workflow.
 
 ## Screenshots
